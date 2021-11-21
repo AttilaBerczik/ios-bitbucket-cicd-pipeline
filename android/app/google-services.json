@@ -1,0 +1,83 @@
+{
+  "project_info": {
+    "project_number": "something",
+    "firebase_url": "something",
+    "project_id": "test-dst",
+    "storage_bucket": "something"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "something",
+        "android_client_info": {
+          "package_name": "com.dst"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "something",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "something"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "something",
+              "client_type": 3
+            },
+            {
+              "client_id": "something",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "org.reactjs.native.example.dst"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "something",
+        "android_client_info": {
+          "package_name": "com.scrumpanion"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "something",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "something"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "something",
+              "client_type": 3
+            },
+            {
+              "client_id": "something",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "org.reactjs.native.example.dst"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

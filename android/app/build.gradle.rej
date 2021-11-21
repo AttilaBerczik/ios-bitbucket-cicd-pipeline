@@ -1,0 +1,12 @@
+diff a/android/app/build.gradle b/android/app/build.gradle	(rejected hunks)
+@@ -69,6 +69,10 @@
+             include "armeabi-v7a", "x86", "arm64-v8a", "x86_64"
+         }
+     }
++    play {
++        track = 'internal' //'alpha','beta' or 'production'
++        serviceAccountCredentials.set(file('../google_play_api_key.json'))
++    }
+     signingConfigs {
+         release {
+             storeFile file("keys/keystore-file.jks")

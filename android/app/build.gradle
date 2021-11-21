@@ -1,81 +1,19 @@
 apply plugin: "com.android.application"
-
+apply plugin: 'com.github.triplet.play'
+apply plugin: 'com.google.gms.google-services' 
 import com.android.build.OutputFile
 
-/**
- * The react.gradle file registers a task for each build variant (e.g. bundleDebugJsAndAssets
- * and bundleReleaseJsAndAssets).
- * These basically call `react-native bundle` with the correct arguments during the Android build
- * cycle. By default, bundleDebugJsAndAssets is skipped, as in debug/dev mode we prefer to load the
- * bundle directly from the development server. Below you can see all the possible configurations
- * and their defaults. If you decide to add a configuration block, make sure to add it before the
- * `apply from: "../../node_modules/react-native/react.gradle"` line.
- *
- * project.ext.react = [
- *   // the name of the generated asset file containing your JS bundle
- *   bundleAssetName: "index.android.bundle",
- *
- *   // the entry file for bundle generation. If none specified and
- *   // "index.android.js" exists, it will be used. Otherwise "index.js" is
- *   // default. Can be overridden with ENTRY_FILE environment variable.
- *   entryFile: "index.android.js",
- *
- *   // https://reactnative.dev/docs/performance#enable-the-ram-format
- *   bundleCommand: "ram-bundle",
- *
- *   // whether to bundle JS and assets in debug mode
- *   bundleInDebug: false,
- *
- *   // whether to bundle JS and assets in release mode
- *   bundleInRelease: true,
- *
- *   // whether to bundle JS and assets in another build variant (if configured).
- *   // See http://tools.android.com/tech-docs/new-build-system/user-guide#TOC-Build-Variants
- *   // The configuration property can be in the following formats
- *   //         'bundleIn${productFlavor}${buildType}'
- *   //         'bundleIn${buildType}'
- *   // bundleInFreeDebug: true,
- *   // bundleInPaidRelease: true,
- *   // bundleInBeta: true,
- *
- *   // whether to disable dev mode in custom build variants (by default only disabled in release)
- *   // for example: to disable dev mode in the staging build type (if configured)
- *   devDisabledInStaging: true,
- *   // The configuration property can be in the following formats
- *   //         'devDisabledIn${productFlavor}${buildType}'
- *   //         'devDisabledIn${buildType}'
- *
- *   // the root of your project, i.e. where "package.json" lives
- *   root: "../../",
- *
- *   // where to put the JS bundle asset in debug mode
- *   jsBundleDirDebug: "$buildDir/intermediates/assets/debug",
- *
- *   // where to put the JS bundle asset in release mode
- *   jsBundleDirRelease: "$buildDir/intermediates/assets/release",
- *
- *   // where to put drawable resources / React Native assets, e.g. the ones you use via
- *   // require('./image.png')), in debug mode
- *   resourcesDirDebug: "$buildDir/intermediates/res/merged/debug",
- *
- *   // where to put drawable resources / React Native assets, e.g. the ones you use via
- *   // require('./image.png')), in release mode
- *   resourcesDirRelease: "$buildDir/intermediates/res/merged/release",
- *
- *   // by default the gradle tasks are skipped if none of the JS files or assets change; this means
- *   // that we don't look at files in android/ or ios/ to determine whether the tasks are up to
- *   // date; if you have any other folders that you want to ignore for performance reasons (gradle
- *   // indexes the entire tree), add them here. Alternatively, if you have JS files in android/
- *   // for example, you might want to remove it from here.
- *   inputExcludes: ["android/**", "ios/**"],
- *
- *   // override which node gets called and with what additional arguments
- *   nodeExecutableAndArgs: ["node"],
- *
- *   // supply additional arguments to the packager
- *   extraPackagerArgs: []
- * ]
- */
+//get signing certificates from Bitbucket secrets
+def secretsPropertiesFile = rootProject.file("secrets.properties")
+def secretProperties = new Properties()
+if (secretsPropertiesFile.exists()) {
+    secretProperties.load(new FileInputStream(secretsPropertiesFile))
+}
+else {
+    secretProperties.setProperty("SIGNING_KEYSTORE_PASSWORD", "${System.getenv('KEYSTORE_PASSWORD')}")
+    secretProperties.setProperty("SIGNING_KEY_ALIAS", "${System.getenv('KEY_ALIAS')}")
+    secretProperties.setProperty("SIGNING_KEY_PASSWORD", "${System.getenv('KEYSTORE_PASSWORD')}")
+}
 
 project.ext.react = [
     enableHermes: false,  // clean and rebuild if changing
@@ -120,12 +58,8 @@ def jscFlavor = 'org.webkit:android-jsc:+'
  */
 def enableHermes = project.ext.react.get("enableHermes", false);
 
-/**
- * Architectures to build native code for in debug.
- */
-def nativeArchitectures = project.getProperties().get("reactNativeDebugArchitectures")
-
 android {
+
     ndkVersion rootProject.ext.ndkVersion
 
     compileSdkVersion rootProject.ext.compileSdkVersion
@@ -134,8 +68,15 @@ android {
         applicationId "com.dst"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        //set the version code to the current build number in the pipeline, which is constantly incremented with each build
+        //if it is not the produtction build on the CI/CD Pipeline, just pass one
+        if (System.getenv('BITBUCKET_BUILD_NUMBER')) {
+                versionCode System.getenv('BITBUCKET_BUILD_NUMBER').toString().toInteger()
+        }
+        else {
+            versionCode 1
+        }
+        versionName "1.0.0.1"
     }
     splits {
         abi {
@@ -146,6 +87,13 @@ android {
         }
     }
     signingConfigs {
+        release {
+            //pass signing credentials
+            storeFile file("../keys/keystore-file.jks")
+            keyAlias "${secretProperties['SIGNING_KEY_ALIAS']}"
+            keyPassword "${secretProperties['SIGNING_KEY_PASSWORD']}"
+            storePassword "${secretProperties['SIGNING_KEYSTORE_PASSWORD']}"
+        }
         debug {
             storeFile file('debug.keystore')
             storePassword 'android'
@@ -156,18 +104,13 @@ android {
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
-            if (nativeArchitectures) {
-                ndk {
-                    abiFilters nativeArchitectures.split(',')
-                }
-            }
         }
         release {
             // Caution! In production, you need to generate your own keystore file.
             // see https://reactnative.dev/docs/signed-apk-android.
-            signingConfig signingConfigs.debug
             minifyEnabled enableProguardInReleaseBuilds
             proguardFiles getDefaultProguardFile("proguard-android.txt"), "proguard-rules.pro"
+            signingConfig signingConfigs.release
         }
     }
 
@@ -187,7 +130,14 @@ android {
         }
     }
 }
-
+play {
+    //set the target track where the upload will be set, it will be available to internal testers
+    track.set("internal")
+    //set the release name to be the commit message, if longer than 51 characters trim it, otherwise it will cause an error
+    releaseName.set(System.getenv('COMMIT_MESSAGE').toString().substring(0, Math.min(System.getenv('COMMIT_MESSAGE').toString().length(), 50)))
+    //show the location of the generated google api credentials
+    serviceAccountCredentials.set(file("../keys/google-play-api-key.json"))
+}
 dependencies {
     implementation fileTree(dir: "libs", include: ["*.jar"])
     //noinspection GradleDynamicVersion
@@ -196,7 +146,7 @@ dependencies {
     implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.0.0"
 
     debugImplementation("com.facebook.flipper:flipper:${FLIPPER_VERSION}") {
-        exclude group:'com.facebook.fbjni'
+      exclude group:'com.facebook.fbjni'
     }
 
     debugImplementation("com.facebook.flipper:flipper-network-plugin:${FLIPPER_VERSION}") {

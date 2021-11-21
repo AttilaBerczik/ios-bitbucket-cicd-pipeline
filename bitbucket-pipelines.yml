@@ -1,0 +1,146 @@
+pipelines:
+  branches:
+    develop:
+      - parallel:
+          - step:
+              name: Download dependencies
+              image: 'node:latest'
+              caches:
+                - node
+              script:
+                - yarn install --prod
+              artifacts:
+                - node_modules/**
+          - step:
+              name: Create keystore and API key
+              script:
+                - cd android
+                - mkdir keys
+                - >-
+                  echo $KEYSTORE_FILE_BASE64 | base64 --decode >
+                  keys/keystore-file.jks
+                - >-
+                  echo $GOOGLE_PLAY_API_KEY_BASE64 | base64 --decode >
+                  keys/google-play-api-key.json
+              artifacts:
+                - android/keys/**
+      - parallel:
+          # IOS Apple Appstore Publish to testers
+          - step:
+              name: Appstore publish to testers
+              deployment: IOS Internal
+              script:
+                - pipe: atlassian/ssh-run:0.3.1
+                  variables:
+                    SSH_USER: 'user11111'
+                    SERVER: '111.11.11.11'
+                    MODE: 'script'
+                    COMMAND: './ios-build/macBuildScript.sh' # path to the script
+                    ENV_VARS: >-
+                      macPassword=${macPassword}
+                      appStoreAccountPassword=${appStoreAccountPassword}
+                      appStoreUsername=${appStoreUsername}
+                      BUILD_NUMBER=${BITBUCKET_BUILD_NUMBER}
+          # Android Google Playstore Publish to testers
+          - step:
+              # Publish application to internal testing on Google Play Store automatically
+              name: Playstore publish to testers
+              image: 'mingc/android-build-box:latest'
+              deployment: Android Internal
+              services:
+                - docker
+              caches:
+                - gradle
+                - gradle-wrapper
+                - docker
+              script:
+                - cd android
+                # necessary, otherwise the pipeline will have problems with the too low version of the Java JDK
+                - 'export PATH=/usr/lib/jvm/java-1.11.0-openjdk-amd64/bin:$PATH'
+                - export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64/
+                # create a global commit message variable, which will be accessed from the build.gradle file
+                - export COMMIT_MESSAGE=`git log --format=%B -n 1 $BITBUCKET_COMMIT`
+                # create and publish release bundle
+                - chmod +x gradlew
+                - ./gradlew publishBundle
+          - step:
+              # Create Debug APK, triggered manually, can be accessed in the Downloads section
+              name: Create Debug application
+              image: 'mingc/android-build-box:latest'
+              trigger: manual
+              services:
+                - docker
+              caches:
+                - gradle
+                - gradle-wrapper
+                - docker
+              script:
+                - cd android
+                - 'export PATH=/usr/lib/jvm/java-1.11.0-openjdk-amd64/bin:$PATH'
+                - export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64/
+                - chmod +x gradlew
+                - ./gradlew assembleDebug
+                - pipe: 'atlassian/bitbucket-upload-file:0.3.2'
+                  variables:
+                    BITBUCKET_USERNAME: $BITBUCKET_USERNAME
+                    BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
+                    FILENAME: >-
+                      /opt/atlassian/pipelines/agent/build/android/app/build/outputs/apk/debug/app-debug.apk
+                    ACCOUNT: $BITBUCKET_REPO_OWNER
+                    REPOSITORY: $BITBUCKET_REPO_SLUG
+              artifacts:
+                - android/app/build/outputs/**
+          - step:
+              # Create Release Bundle (aab), triggered manually, can be accessed in the Downloads section
+              name: Create Release Bundle for Play Store
+              image: 'mingc/android-build-box:latest'
+              trigger: manual
+              services:
+                - docker
+              caches:
+                - gradle
+                - docker
+                - gradle-wrapper
+              script:
+                - cd android
+                - 'export PATH=/usr/lib/jvm/java-1.11.0-openjdk-amd64/bin:$PATH'
+                - export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64/
+                - chmod +x gradlew
+                - ./gradlew bundleRelease
+                - pipe: 'atlassian/bitbucket-upload-file:0.3.2'
+                  variables:
+                    BITBUCKET_USERNAME: $BITBUCKET_USERNAME
+                    BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
+                    FILENAME: >-
+                      /opt/atlassian/pipelines/agent/build/android/app/build/outputs/bundle/release/app-release.aab
+                    ACCOUNT: $BITBUCKET_REPO_OWNER
+                    REPOSITORY: $BITBUCKET_REPO_SLUG
+          - step:
+              # Create Universal APK, triggered manually, can be accessed in the Downloads section
+              name: Create Universal APK
+              image: 'mingc/android-build-box:latest'
+              trigger: manual
+              services:
+                - docker
+              caches:
+                - gradle
+                - docker
+                - gradle-wrapper
+              script:
+                - cd android
+                - 'export PATH=/usr/lib/jvm/java-1.11.0-openjdk-amd64/bin:$PATH'
+                - export JAVA_HOME=/usr/lib/jvm/java-1.11.0-openjdk-amd64/
+                - chmod +x gradlew
+                - ./gradlew assembleRelease
+                - pipe: 'atlassian/bitbucket-upload-file:0.3.2'
+                  variables:
+                    BITBUCKET_USERNAME: $BITBUCKET_USERNAME
+                    BITBUCKET_APP_PASSWORD: $BITBUCKET_APP_PASSWORD
+                    FILENAME: >-
+                      /opt/atlassian/pipelines/agent/build/android/app/build/outputs/apk/release/app-release.apk
+                    ACCOUNT: $BITBUCKET_REPO_OWNER
+                    REPOSITORY: $BITBUCKET_REPO_SLUG
+definitions:
+  caches:
+    gradle-wrapper: ~/.gradle/wrapper
+    android-emulator: $ANDROID_HOME/system-images/android-21

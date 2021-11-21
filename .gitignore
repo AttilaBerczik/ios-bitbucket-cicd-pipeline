@@ -5,6 +5,7 @@
 # Xcode
 #
 build/
+builds/
 *.pbxuser
 !default.pbxuser
 *.mode1v3
@@ -25,10 +26,8 @@ DerivedData
 #
 build/
 .idea
-.gradle
 local.properties
 *.iml
-*.hprof
 
 # node.js
 #
@@ -58,3 +57,4 @@ buck-out/
 
 # CocoaPods
 /ios/Pods/
+/ios/\dst.xcworkspace/

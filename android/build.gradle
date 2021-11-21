@@ -6,14 +6,19 @@ buildscript {
         minSdkVersion = 21
         compileSdkVersion = 30
         targetSdkVersion = 30
-        ndkVersion = "21.4.7075529"
+        ndkVersion = "20.1.5948944"
     }
     repositories {
         google()
         mavenCentral()
     }
     dependencies {
-        classpath("com.android.tools.build:gradle:4.2.2")
+        // download the necessary Gradle plugin
+        classpath("com.android.tools.build:gradle:7.0.1")
+        // required for the Firebase services
+        classpath 'com.google.gms:google-services:4.3.10'
+        // download the Gradle Play Publisher, which publishes our application to the Google Play Store
+        classpath "com.github.triplet.gradle:play-publisher:3.6.0"
         // NOTE: Do not place your application dependencies here; they belong
         // in the individual module build.gradle files
     }
